@@ -28,7 +28,7 @@ public class EmailListener {
                 + "<div style=\"background-color: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);\">"
                 + "<h3 style=\"color: #333;\">Verification Code:</h3>"
                 + "<p style=\"font-size: 18px; font-weight: bold; color: #007bff;\">" + verificationCode + "</p>"
-                + "<p style=\"font-size: 12px; font-weight: bold; color:black\"> You have 2 minutes. Vence en " +  formatTime(time) + "</p>"
+                + "<p style=\"font-size: 12px; font-weight: bold; color:black\"> You have 5 minutes. Until " +  formatTime(time) + "</p>"
                 + "</div>"
                 + "</div>"
                 + "</body>"

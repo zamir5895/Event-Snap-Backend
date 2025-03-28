@@ -6,6 +6,7 @@ import com.backend.users.Adress.Domain.Adress;
 import com.backend.users.Adress.Infrastructure.AdressRepository;
 import com.backend.users.Confirmation.Domain.Confirmation;
 import com.backend.users.Confirmation.Infrastructure.ConfirmationRepository;
+import com.backend.users.Email.Service.CodeVerificationEvent;
 import com.backend.users.Security.Auth.DTOs.*;
 import com.backend.users.Security.Exceptions.UnauthorizedException;
 import com.backend.users.Security.Exceptions.UserAlreadyExists;
@@ -15,6 +16,7 @@ import com.backend.users.Users.Domain.UserService;
 import com.backend.users.Users.Infrastructure.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.coyote.BadRequestException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,7 +31,6 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserService userService;
@@ -37,11 +38,11 @@ public class AuthService {
     private final AdressRepository adressRepository;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager, JwtService jwtService
+                       JwtService jwtService
             , ApplicationEventPublisher eventPublisher, UserService userService, ConfirmationRepository confirmationRepository, AdressRepository adressRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
+
         this.jwtService = jwtService;
         this.eventPublisher = eventPublisher;
         this.userService = userService;
@@ -49,9 +50,13 @@ public class AuthService {
         this.adressRepository = adressRepository;
     }
 
+    @Autowired
+    private ApplicationEventPublisher publisher;
+
     public ResponseSignupDTO signup(SignupDTO dto) throws BadRequestException, UserAlreadyExists {
         Optional<User> user = userRepository.findByEmail(dto.getEmail());
-        if(user == null){
+        if(user.isEmpty()){
+            System.out.println(dto.getEmail());
             if(!validateEmail(dto.getEmail())){
                 throw new BadRequestException("Email is not valid");
             }
@@ -61,6 +66,8 @@ public class AuthService {
             u.setFirstName(dto.getFirstName());
             u.setLastName(dto.getLastName());
             u.setPhoneNumber(String.valueOf(dto.getPhoneNumber()));
+            u.setActive(false);
+            u.setProfilePicture("");
             User save = userRepository.save(u);
             ResponseSignupDTO responseSignupDTO = new ResponseSignupDTO();
             responseSignupDTO.setEmail(save.getEmail());
@@ -69,8 +76,12 @@ public class AuthService {
             responseSignupDTO.setId(save.getId());
             Confirmation confirmation = new Confirmation();
             confirmation.setUserId(save.getId());
-            confirmation.setConfirmationDate(ZonedDateTime.now());
-            confirmation.setCode(generateCode());
+            ZonedDateTime now = ZonedDateTime.now();
+            confirmation.setConfirmationDate(now);
+            String code = generateCode();
+            confirmation.setCode(code);
+            confirmationRepository.save(confirmation);
+            sendEmail(dto.getEmail(),dto.getFirstName(),dto.getLastName(),now.plusMinutes(5),code);
             return responseSignupDTO;
         }else{
             throw new UserAlreadyExists("User already exists with that email");
@@ -118,7 +129,9 @@ public class AuthService {
     }
 
     private Boolean validateEmail(String email) {
-        String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,6}$";
+        String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$";
+
+
         return email.matches(emailRegex);
     }
 
@@ -174,9 +187,6 @@ public class AuthService {
         adressRepository.save(adress);
     }
 
-
-
-
     private UserAuthDTO createUserAuthDTO(User user) {
         UserAuthDTO authDTO = new UserAuthDTO();
         authDTO.setFirstName(user.getFirstName());
@@ -187,7 +197,9 @@ public class AuthService {
         return authDTO;
     }
 
-
+    private void sendEmail(String email, String firstName, String lastName, ZonedDateTime time, String code){
+        publisher.publishEvent(new CodeVerificationEvent(email,firstName,lastName,code,time));
+    }
 
 
 

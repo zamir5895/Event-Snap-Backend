@@ -30,6 +30,7 @@ public class JwtService {
         }
     }
     public String extractClaim(String token, String claim) {
+
         return JWT.decode(token).getClaim(claim).asString();
     }
     public String generateToken(UserDetails data) {

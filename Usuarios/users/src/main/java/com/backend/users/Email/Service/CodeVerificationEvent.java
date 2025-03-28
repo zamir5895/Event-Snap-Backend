@@ -18,7 +18,6 @@ public class CodeVerificationEvent extends ApplicationEvent {
         this.lastName = lastName;
         this.code = code;
         this.expiryDate = expiryDate;
-
     }
 
     public String getEmail() {
